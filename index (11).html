@@ -1,0 +1,394 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Ring Sync</title>
+<meta name="theme-color" content="#F2F3F7">
+<script>(function(){var t;try{t=localStorage.getItem("rs_theme")}catch(e){}if(!t)t=matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light";document.documentElement.dataset.theme=t;})();</script>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,800&family=Figtree:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#F2F3F7;--card:#FFFFFF;--card2:#F2F3F7;--line:rgba(23,25,35,.1);--txt:#171923;--mut:#5A6072;--acc:#0F85D6;--warn:#C98A00;--bad:#D7383E;--btn:#171923;--btnink:#FFFFFF}
+:root[data-theme=dark]{--bg:#171925;--card:#212437;--card2:#171925;--line:rgba(241,242,247,.12);--txt:#F1F2F7;--mut:#AAB0C4;--acc:#52B7F8;--warn:#F2BC3D;--bad:#FF6A6E;--btn:#F1F2F7;--btnink:#171925}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--txt);font:15px/1.5 "Figtree",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;padding:calc(14px + env(safe-area-inset-top)) 16px calc(24px + env(safe-area-inset-bottom));max-width:620px;margin:0 auto}
+a{color:var(--acc);text-decoration:none}
+h1{font:800 30px/1 "Bricolage Grotesque","Avenir Next",sans-serif;margin:0;letter-spacing:-.02em}
+.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
+.sub{color:var(--mut);font-size:13px;margin:0 0 16px}
+.card{background:var(--card);border:0;border-radius:22px;padding:16px;margin-bottom:12px}
+.big{width:100%;font:800 22px/1 "Bricolage Grotesque","Avenir Next",sans-serif;background:var(--btn);color:var(--btnink);border:0;border-radius:14px;padding:16px;cursor:pointer}
+.big:disabled{opacity:.55}
+button.s{font:inherit;font-size:14px;background:var(--card2);color:var(--txt);border:1px solid var(--line);border-radius:10px;padding:9px 13px;cursor:pointer}
+button.s:disabled{opacity:.4}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.steps{list-style:none;margin:14px 0 0;padding:0;font-size:14px}
+.steps li{display:flex;gap:10px;padding:5px 0;color:var(--mut)}
+.steps li.on{color:var(--txt)} .steps li.ok{color:var(--txt)} .steps li.bad{color:var(--bad)}
+.steps .ic{width:18px;text-align:center;flex:none}
+.stat{flex:1;min-width:90px}
+.stat .k{color:var(--mut);font-size:12px}
+.stat .v{font-size:20px;font-weight:600}
+.hint{color:var(--mut);font-size:12px;margin:8px 0 0}
+details>summary{cursor:pointer;font-weight:600;list-style:none}
+details>summary::-webkit-details-marker{display:none}
+details>summary:after{content:" ›";color:var(--mut)}
+details[open]>summary:after{content:" ⌄"}
+input,select{width:100%;font:inherit;background:var(--card2);color:var(--txt);border:1px solid var(--line);border-radius:10px;padding:10px;margin-top:4px}
+label{color:var(--mut);font-size:13px;display:block;margin-top:8px}
+.live{font:800 40px/1.1 "Bricolage Grotesque",sans-serif;color:var(--txt);font-variant-numeric:tabular-nums}
+pre{background:var(--card2);color:var(--mut);border:1px solid var(--line);border-radius:10px;padding:10px;font-size:11px;max-height:220px;overflow:auto;white-space:pre-wrap;word-break:break-all;margin:8px 0 0}
+svg{display:block;width:100%;height:auto}
+</style>
+</head>
+<body>
+<div class="top"><h1>Ring Sync</h1><a href="./dashboard.html" style="font-weight:600">Open dashboard</a></div>
+<p class="sub" id="sub">Private sync for your Colmi ring. Data goes only to your GitHub repo.</p>
+
+<div class="card">
+  <button class="big" id="btnSync">Sync</button>
+  <ul class="steps" id="steps" hidden></ul>
+  <p class="hint" id="syncMsg"></p>
+  <div class="row" style="margin-top:10px">
+    <div class="stat"><div class="k">Battery</div><div class="v" id="bat">–</div></div>
+    <div class="stat"><div class="k">Last sync</div><div class="v" id="last" style="font-size:15px;padding-top:4px">–</div></div>
+  </div>
+</div>
+
+<div class="card">
+  <details id="setup">
+    <summary>GitHub setup <span class="hint" id="setupState" style="font-weight:400"></span></summary>
+    <label>Username<input id="ghUser" autocapitalize="off" autocorrect="off"></label>
+    <label>Data repo<input id="ghRepo" value="ring-data" autocapitalize="off" autocorrect="off"></label>
+    <label>Token (stays on this phone)<input id="ghTok" type="password" autocapitalize="off" autocorrect="off"></label>
+    <div class="row" style="margin-top:12px"><button class="s" id="btnSave">Save & test</button></div>
+    <p class="hint" id="ghMsg"></p>
+  </details>
+</div>
+
+<div class="card">
+  <details>
+    <summary>Tools</summary>
+    <div class="row" style="margin-top:12px;justify-content:space-between">
+      <div><div class="hint" style="margin:0" id="liveLbl">Live reading</div><div class="live" id="live">––</div></div>
+      <div class="row"><button class="s" id="btnLiveHr">Live HR</button><button class="s" id="btnLiveO2">Live SpO₂</button></div>
+    </div>
+    <div class="row" style="margin-top:12px">
+      <button class="s" id="btnFind">Find ring (vibrate)</button>
+      <button class="s" id="btnForget">Pick a different ring</button>
+      <button class="s" id="btnCopy" disabled>Copy last sync JSON</button>
+    </div>
+    <p class="hint" id="devinfo"></p>
+  </details>
+</div>
+
+<div class="card">
+  <details>
+    <summary>Debug log</summary>
+    <div class="row" style="margin-top:10px"><button class="s" id="btnDbg">Copy debug log</button></div>
+    <pre id="log"></pre>
+  </details>
+</div>
+
+<script>
+"use strict";
+// ---------- constants (Colmi R0x protocol, per tahnok/colmi_r02_client + Gadgetbridge) ----------
+const UART = "6e40fff0-b5a3-f393-e0a9-e50e24dcca9e", RX = "6e400002-b5a3-f393-e0a9-e50e24dcca9e", TX = "6e400003-b5a3-f393-e0a9-e50e24dcca9e";
+const V2 = "de5bf728-d711-4e47-af26-65e3012a5dc7", V2_CMD = "de5bf72a-d711-4e47-af26-65e3012a5dc7", V2_NOTIFY = "de5bf729-d711-4e47-af26-65e3012a5dc7";
+const DEVINFO = "0000180a-0000-1000-8000-00805f9b34fb";
+const STAGE = { 2: "light", 3: "deep", 4: "rem", 5: "awake" };
+
+const $ = id => document.getElementById(id);
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const hex = a => Array.from(a, b => b.toString(16).padStart(2, "0")).join(" ");
+const logLines = [];
+function log(m){ const l = new Date().toISOString().slice(11, 23) + "  " + m; logLines.push(l); if (logLines.length > 1500) logLines.shift(); $("log").textContent = logLines.slice(-250).join("\n"); }
+const store = { get(k){ try { return localStorage.getItem("rs_" + k) || ""; } catch { return ""; } }, set(k, v){ try { localStorage.setItem("rs_" + k, v); } catch {} }, del(k){ try { localStorage.removeItem("rs_" + k); } catch {} } };
+
+// ---------- packets ----------
+function packet(cmd, sub = []){ const p = new Uint8Array(16); p[0] = cmd; sub.forEach((b, i) => p[i + 1] = b); let s = 0; for (let i = 0; i < 15; i++) s += p[i]; p[15] = s & 255; return p; }
+const bcd = n => (Math.floor(n / 10) << 4) | (n % 10);
+const unbcd = b => ((b >> 4) & 15) * 10 + (b & 15);
+const u32le = n => [n & 255, (n >>> 8) & 255, (n >>> 16) & 255, (n >>> 24) & 255];
+const u16 = (a, i) => a[i] | (a[i + 1] << 8);
+
+// ---------- local-time helpers (ring clock = phone local time, like QRing/Gadgetbridge) ----------
+const localMidnight = daysAgo => { const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - daysAgo); return d; };
+const sec = d => Math.floor(d.getTime() / 1000);
+
+// ---------- BLE plumbing ----------
+let dev = null, rxChar = null, cmdChar = null, waiters = [], big = null;
+function deliver(channel, p){
+  for (const w of [...waiters]) {
+    if (w.channel !== channel || w.key !== p[channel === "v1" ? 0 : 1]) continue;
+    let r; try { r = w.collect(p); } catch (e) { r = { error: String(e) }; }
+    if (r !== undefined) { clearTimeout(w.t); waiters = waiters.filter(x => x !== w); w.resolve(r); }
+  }
+}
+function onV1(ev){ const v = ev.target.value, p = new Uint8Array(v.buffer.slice(v.byteOffset, v.byteOffset + v.byteLength)); log("◀ " + hex(p)); if (p.length === 16) deliver("v1", p); }
+function onV2(ev){
+  const v = ev.target.value, chunk = new Uint8Array(v.buffer.slice(v.byteOffset, v.byteOffset + v.byteLength));
+  log("◀2 " + hex(chunk.slice(0, 24)) + (chunk.length > 24 ? ` …(${chunk.length}B)` : ""));
+  if (big) { const m = new Uint8Array(big.length + chunk.length); m.set(big); m.set(chunk, big.length); big = m; }
+  else if (chunk[0] === 0xbc) big = chunk; else return;
+  const need = u16(big, 2) + 6;
+  if (big.length >= need) { const p = big; big = null; deliver("v2", p); }
+}
+async function send(p){ log("▶ " + hex(p)); if (rxChar.writeValueWithoutResponse) await rxChar.writeValueWithoutResponse(p); else await rxChar.writeValue(p); }
+async function sendCmd(p){ log("▶2 " + hex(p)); if (cmdChar.writeValueWithoutResponse) await cmdChar.writeValueWithoutResponse(p); else await cmdChar.writeValue(p); }
+// partial: on timeout, resolve with whatever the collector has gathered (collector.partial())
+function request(p, key, collect, ms = 7000, channel = "v1", partial = null){
+  return new Promise(async (resolve, reject) => {
+    const w = { channel, key, collect, resolve };
+    w.t = setTimeout(() => { waiters = waiters.filter(x => x !== w); partial ? resolve(partial()) : reject(new Error("no reply to 0x" + key.toString(16))); }, ms);
+    waiters.push(w);
+    try { channel === "v2" ? await sendCmd(p) : await send(p); } catch (e) { clearTimeout(w.t); waiters = waiters.filter(x => x !== w); reject(e); }
+  });
+}
+const fire = async (p, ms = 250) => { await send(p); await sleep(ms); };
+
+// ---------- commands ----------
+const getBattery = () => request(packet(3), 3, p => ({ level: p[1], charging: !!p[2] }));
+const setLocalTime = () => { const d = new Date(); return request(packet(1, [bcd(d.getFullYear() % 2000), bcd(d.getMonth() + 1), bcd(d.getDate()), bcd(d.getHours()), bcd(d.getMinutes()), bcd(d.getSeconds()), 1]), 1, () => true, 3000).catch(() => true); };
+const getHrSettings = () => request(packet(22, [1]), 22, p => ({ enabled: p[2] === 1, interval: p[3] }));
+
+// HR history for one local day: 288 × 5-min slots, ring addresses days by local wall-clock midnight encoded as if UTC
+function getHrDay(daysAgo){
+  const m = localMidnight(daysAgo), key = Date.UTC(m.getFullYear(), m.getMonth(), m.getDate()) / 1000;
+  let size = 0, idx = 0, vals = [];
+  const done = () => vals.map((v, i) => [sec(m) + i * 300, v]).filter(([t, v]) => v > 0);
+  return request(packet(21, u32le(key)), 21, p => {
+    const st = p[1];
+    if (st === 255) return [];
+    if (st === 0) { size = p[2]; vals = new Array(Math.max(size * 13, 288)).fill(0); idx = 0; if (size <= 1) return []; return; }
+    if (st === 1) { for (let k = 0; k < 9; k++) vals[k] = p[6 + k]; idx = 9; } else { for (let k = 0; k < 13; k++) vals[idx + k] = p[2 + k]; idx += 13; }
+    if (st === size - 1) return done().filter(([t]) => t < 288 * 300 + sec(m));
+  }, 10000, "v1", done);
+}
+// Steps in 15-min buckets; ring returns its own (local) date in BCD
+function getStepsDay(daysAgo){
+  let started = false, newCal = false, out = [];
+  return request(packet(67, [daysAgo, 0x0f, 0x00, 0x5f, 0x01]), 67, p => {
+    if (!started && p[1] === 255) return [];
+    if (!started && p[1] === 240) { started = true; newCal = p[3] === 1; return; }
+    started = true;
+    const t = new Date(unbcd(p[1]) + 2000, unbcd(p[2]) - 1, unbcd(p[3]), Math.floor(p[4] / 4), (p[4] % 4) * 15);
+    out.push([sec(t), p[9] | p[10] << 8, ((p[7] | p[8] << 8) * (newCal ? 10 : 1)) / 1000, p[11] | p[12] << 8]);
+    if (p[5] === p[6] - 1) return out;
+  }, 8000, "v1", () => out);
+}
+// 30-min series (stress today, HRV per day): packet 1 data from byte 3 (12 values), later packets 13 values from byte 2
+function halfHourSeries(cmd, sub, daysAgo){
+  const m = localMidnight(daysAgo), out = [];
+  return request(packet(cmd, sub), cmd, p => {
+    const nr = p[1];
+    if (nr === 255) return out;
+    if (nr === 0) return;
+    const start = nr === 1 ? 3 : 2, before = nr === 1 ? 0 : 12 + (nr - 2) * 13;
+    for (let i = start; i < 15; i++) if (p[i]) out.push([sec(m) + (before + i - start) * 1800, p[i]]);
+    if (nr >= 4) return out;
+  }, 6000, "v1", () => out);
+}
+const getStress = () => halfHourSeries(0x37, [], 0);
+const getHrvDay = d => halfHourSeries(0x39, u32le(d), d);
+
+// Big data (V2 channel): SpO2 hourly min/max, sleep sessions with stages
+const bigReq = type => new Uint8Array([0xbc, type, 0x01, 0x00, 0xff, 0x00, 0xff]);
+function getSpo2(){
+  return request(bigReq(0x2a), 0x2a, v => {
+    const len = u16(v, 2), out = []; let i = 6, d = -1;
+    while (d !== 0 && i - 6 < len) {
+      d = v[i++]; const m = localMidnight(d);
+      for (let h = 0; h < 24; h++) { const lo = v[i++], hi = v[i++]; if (lo > 0 && hi > 0) out.push([sec(m) + h * 3600, lo, hi]); if (i - 6 >= len) break; }
+    }
+    return out;
+  }, 9000, "v2");
+}
+function getSleep(){
+  return request(bigReq(0x27), 0x27, v => {
+    const len = u16(v, 2), out = [];
+    if (len < 2) return out;
+    const days = v[6]; let i = 7;
+    for (let k = 0; k < days; k++) {
+      const daysAgo = v[i++], bytes = v[i++], s = u16(v, i), e = u16(v, i + 2); i += 4;
+      const mid = sec(localMidnight(daysAgo)), start = mid + (s > e ? s - 1440 : s) * 60, end = mid + e * 60;
+      const stages = []; let t = start;
+      for (let j = 4; j < bytes; j += 2) { const st = v[i], mins = v[i + 1]; i += 2; if (mins > 0) { stages.push([t, STAGE[st] || "st" + st, mins]); t += mins * 60; } }
+      out.push({ start, end, stages });
+    }
+    return out;
+  }, 9000, "v2");
+}
+
+// Live reading (HR: this firmware sends beat-to-beat intervals in ms at bytes 6-7)
+let liveBusy = false;
+const median = a => { const s = [...a].sort((x, y) => x - y); return s.length ? s[Math.floor(s.length / 2)] : null; };
+async function live(type, label){
+  if (liveBusy) return; liveBusy = true;
+  try {
+    if (!(await ensureConnected())) return;
+    $("liveLbl").textContent = "Measuring " + label + "… hold still"; $("live").textContent = "…";
+    const direct = [], rr = []; let lastRaw = -1;
+    const w = { channel: "v1", key: 105, collect: p => {
+      if (p[1] !== type || p[2] !== 0) return;
+      const raw = p[6] | (p[7] << 8);
+      if (p[3] > 0) { direct.push(p[3]); $("live").textContent = p[3] + (type === 3 ? "%" : " bpm"); }
+      else if (type === 1 && raw >= 300 && raw <= 2000) { if (raw !== lastRaw) rr.push(raw); lastRaw = raw; $("live").textContent = Math.round(60000 / median(rr.slice(-8))) + " bpm"; }
+      else if (type === 3 && raw >= 70 && raw <= 100) { direct.push(raw); $("live").textContent = raw + "%"; }
+    }, resolve: () => {} };
+    waiters.push(w);
+    await send(packet(105, [type, 1]));
+    const t0 = Date.now(), keep = setInterval(() => send(packet(105, [type, 3])).catch(() => {}), 8000);
+    while (!(direct.length >= 8 || rr.length >= 30) && Date.now() - t0 < 50000 && dev?.gatt?.connected) await sleep(250);
+    clearInterval(keep); waiters = waiters.filter(x => x !== w);
+    await send(packet(106, [type, 0, 0])).catch(() => {});
+    if (rr.length >= 6) {
+      const tail = rr.slice(Math.floor(rr.length / 3)), bpm = Math.round(60000 / median(tail));
+      let ss = 0, n = 0; for (let i = 1; i < tail.length; i++) { const d = tail[i] - tail[i - 1]; if (Math.abs(d) < 200) { ss += d * d; n++; } }
+      $("live").textContent = bpm + " bpm"; $("liveLbl").textContent = `Heart rate · ${tail.length} beats` + (n ? ` · rough HRV ${Math.round(Math.sqrt(ss / n))} ms` : "");
+    } else if (direct.length) { $("live").textContent = median(direct.slice(-5)) + (type === 3 ? "%" : " bpm"); $("liveLbl").textContent = label; }
+    else { $("live").textContent = "––"; $("liveLbl").textContent = `No ${label} reading. Tighten fit and retry.`; }
+  } finally { liveBusy = false; }
+}
+
+// ---------- connection (remembers the ring) ----------
+async function openGatt(d){
+  dev = d;
+  dev.addEventListener("gattserverdisconnected", () => log("disconnected"));
+  const gatt = await Promise.race([dev.gatt.connect(), sleep(12000).then(() => { throw new Error("connect timeout"); })]);
+  const s1 = await gatt.getPrimaryService(UART);
+  rxChar = await s1.getCharacteristic(RX);
+  const tx = await s1.getCharacteristic(TX); await tx.startNotifications(); tx.addEventListener("characteristicvaluechanged", onV1);
+  try {
+    const s2 = await gatt.getPrimaryService(V2);
+    cmdChar = await s2.getCharacteristic(V2_CMD);
+    const n2 = await s2.getCharacteristic(V2_NOTIFY); await n2.startNotifications(); n2.addEventListener("characteristicvaluechanged", onV2);
+  } catch (e) { cmdChar = null; log("no V2 channel: " + e.message); }
+  store.set("devId", dev.id); store.set("devName", dev.name || "");
+  log("connected to " + dev.name);
+  try { const di = await gatt.getPrimaryService(DEVINFO), dec = new TextDecoder();
+    const fw = dec.decode(await (await di.getCharacteristic("00002a26-0000-1000-8000-00805f9b34fb")).readValue());
+    $("devinfo").textContent = (dev.name || "ring") + " · firmware " + fw; store.set("fw", fw);
+  } catch {}
+  return true;
+}
+async function ensureConnected(){
+  if (dev?.gatt?.connected) return true;
+  if (!navigator.bluetooth) { alert("No Bluetooth here. Open this page in the Bluefy app."); return false; }
+  // 1) reconnect to the remembered ring without the picker, where the browser allows it
+  const id = store.get("devId");
+  if (id && navigator.bluetooth.getDevices) {
+    try { const known = (await navigator.bluetooth.getDevices()).find(d => d.id === id); if (known) { log("reconnecting remembered ring"); return await openGatt(known); } }
+    catch (e) { log("remembered reconnect failed: " + e.message); }
+  }
+  if (dev && dev.id === id) { try { log("reconnecting same session device"); return await openGatt(dev); } catch (e) { log("reconnect failed: " + e.message); } }
+  // 2) picker: the ring shows as "COLMI R02_xxxx"
+  try {
+    const d = await navigator.bluetooth.requestDevice({ filters: [{ namePrefix: "COLMI" }, { namePrefix: "R0" }, { namePrefix: "R1" }], optionalServices: [UART, V2, DEVINFO] });
+    return await openGatt(d);
+  } catch (e) {
+    log("picker: " + (e && (e.name + " " + e.message)));
+    if (e && e.name === "NotFoundError" && !/cancel/i.test(e.message || "")) {
+      try { const d = await navigator.bluetooth.requestDevice({ acceptAllDevices: true, optionalServices: [UART, V2, DEVINFO] }); return await openGatt(d); } catch (e2) { log("picker (all): " + e2.message); }
+    }
+    return false;
+  }
+}
+
+// ---------- GitHub ----------
+const gh = () => ({ user: store.get("user"), repo: store.get("repo") || "ring-data", tok: store.get("tok") });
+const ghReady = () => { const g = gh(); return g.user && g.repo && g.tok; };
+async function ghApi(path, opts = {}){
+  const g = gh();
+  const r = await fetch(`https://api.github.com/repos/${g.user}/${g.repo}${path}`, { ...opts, headers: { Authorization: "Bearer " + g.tok, Accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" } });
+  if (!r.ok) { let m = ""; try { m = (await r.json()).message; } catch {} throw new Error(`GitHub ${r.status}${m ? ": " + m : ""}`); }
+  return r.json();
+}
+function showState(){
+  $("setupState").textContent = ghReady() ? "· " + gh().user + "/" + gh().repo : "· not set up";
+  if (!ghReady()) $("setup").open = true;
+  const ls = store.get("last"); $("last").textContent = ls ? new Date(ls).toLocaleString([], { weekday: "short", hour: "numeric", minute: "2-digit" }) : "never";
+  const b = store.get("bat"); if (b) $("bat").textContent = b + "%";
+  if (store.get("devName")) $("sub").textContent = "Ring: " + store.get("devName") + " · data goes only to your private repo";
+}
+$("ghUser").value = store.get("user"); $("ghRepo").value = store.get("repo") || "ring-data";
+$("ghTok").placeholder = store.get("tok") ? "saved (leave blank to keep)" : "github_pat_…";
+$("btnSave").onclick = async () => {
+  store.set("user", $("ghUser").value.trim()); store.set("repo", $("ghRepo").value.trim() || "ring-data");
+  if ($("ghTok").value.trim()) store.set("tok", $("ghTok").value.trim());
+  $("ghTok").value = ""; $("ghTok").placeholder = "saved (leave blank to keep)"; $("ghMsg").textContent = "Testing…";
+  try { const info = await ghApi(""); $("ghMsg").textContent = info.private ? "✅ Connected. Repo is private." : "⚠️ Connected, but this repo is PUBLIC. Make it private first."; }
+  catch (e) { $("ghMsg").textContent = "❌ " + e.message; }
+  showState();
+};
+
+// ---------- the one button ----------
+const STEPS = [["connect", "Connect to ring"], ["setup", "Set clock + measurement settings"], ["hr", "Heart rate (7 days)"], ["steps", "Steps (7 days)"],
+  ["sleep", "Sleep stages"], ["spo2", "Blood oxygen"], ["hrv", "HRV (7 days)"], ["stress", "Stress (today)"], ["upload", "Save to GitHub"]];
+function stepUI(id, state, note = ""){
+  const li = $("st_" + id); if (!li) return;
+  li.className = state; li.querySelector(".ic").textContent = { on: "◌", ok: "✓", bad: "✕", skip: "–" }[state] || "·";
+  li.querySelector(".nt").textContent = note ? " · " + note : "";
+}
+let lastOut = null;
+$("btnSync").onclick = async () => {
+  if (!ghReady()) { $("setup").open = true; $("syncMsg").textContent = "Set up GitHub first."; return; }
+  const btn = $("btnSync"); btn.disabled = true; btn.textContent = "Syncing…"; $("syncMsg").textContent = "";
+  $("steps").hidden = false; $("steps").innerHTML = STEPS.map(([id, t]) => `<li id="st_${id}"><span class="ic">·</span><span>${t}<span class="nt"></span></span></li>`).join("");
+  const now = sec(new Date());
+  // Data recorded before the ring clock was switched to local time is skipped (it was saved by earlier syncs)
+  if (!store.get("localSince")) store.set("localSince", String(now));
+  const since = +store.get("localSince");
+  const out = { schema: 2, clock: "local", synced_at: new Date().toISOString(), tz: Intl.DateTimeFormat().resolvedOptions().timeZone, tz_offset_min: -new Date().getTimezoneOffset(),
+    device: null, firmware: null, battery: null, hr_interval_min: null, since, hr: [], steps: [], sleep: [], spo2: [], hrv: [], stress: [], errors: {} };
+  const keep = rows => rows.filter(r => r[0] >= since && r[0] <= now + 300);
+  try {
+    stepUI("connect", "on");
+    if (!(await ensureConnected())) { stepUI("connect", "bad", "not connected"); throw new Error("Couldn't connect. Is the ring awake and nearby, and is QRing closed?"); }
+    out.device = dev.name; out.firmware = store.get("fw");
+    try { const b = await getBattery(); out.battery = b.level; store.set("bat", b.level); $("bat").textContent = b.level + "%" + (b.charging ? " ⚡" : ""); } catch {}
+    stepUI("connect", "ok", out.battery != null ? out.battery + "% battery" : "");
+
+    stepUI("setup", "on");
+    await setLocalTime();
+    try { let s = await getHrSettings(); if (!s.enabled || s.interval !== 5) { await fire(packet(22, [2, 1, 5])); s = await getHrSettings(); } out.hr_interval_min = s.interval; } catch {}
+    for (const c of [0x2c, 0x36, 0x38]) await fire(packet(c, [2, 1]));   // all-day SpO2, stress, HRV on
+    stepUI("setup", "ok", "HR every " + (out.hr_interval_min || "?") + " min");
+
+    const run = async (id, fn) => { stepUI(id, "on"); try { const n = await fn(); stepUI(id, n ? "ok" : "skip", n ? n : "no data yet"); } catch (e) { out.errors[id] = e.message; stepUI(id, "bad", e.message); } };
+    await run("hr", async () => { for (let d = 0; d < 7; d++) out.hr.push(...keep(await getHrDay(d))); return out.hr.length ? out.hr.length + " readings" : 0; });
+    await run("steps", async () => { for (let d = 0; d < 7; d++) out.steps.push(...keep(await getStepsDay(d))); const t = out.steps.reduce((a, r) => a + r[1], 0); return out.steps.length ? t.toLocaleString() + " steps" : 0; });
+    if (cmdChar) {
+      await run("sleep", async () => { out.sleep = (await getSleep()).filter(s => s.end >= since); return out.sleep.length ? out.sleep.length + " night" + (out.sleep.length > 1 ? "s" : "") : 0; });
+      await run("spo2", async () => { out.spo2 = keep(await getSpo2()); return out.spo2.length ? out.spo2.length + " hours" : 0; });
+    } else { stepUI("sleep", "skip", "not supported"); stepUI("spo2", "skip", "not supported"); }
+    await run("hrv", async () => { for (let d = 0; d < 7; d++) out.hrv.push(...keep(await getHrvDay(d))); return out.hrv.length ? out.hrv.length + " readings" : 0; });
+    await run("stress", async () => { out.stress = keep(await getStress()); return out.stress.length ? out.stress.length + " readings" : 0; });
+    try { dev.gatt.disconnect(); } catch {}   // free the ring
+
+    stepUI("upload", "on");
+    lastOut = out; $("btnCopy").disabled = false;
+    const path = "raw/" + out.synced_at.replace(/[:.]/g, "-") + ".json";
+    await ghApi("/contents/" + path, { method: "PUT", body: JSON.stringify({ message: "sync " + out.synced_at, content: btoa(unescape(encodeURIComponent(JSON.stringify(out)))) }) });
+    stepUI("upload", "ok");
+    store.set("last", out.synced_at); showState();
+    $("syncMsg").innerHTML = `✅ Done. Your dashboard updates in about a minute. <a href="./dashboard.html">Open dashboard</a>`;
+    log("uploaded " + path);
+  } catch (e) { $("syncMsg").textContent = "❌ " + e.message; log("sync: " + e.message); stepUI("upload", "bad"); }
+  btn.disabled = false; btn.textContent = "Sync";
+};
+
+// ---------- tools ----------
+$("btnLiveHr").onclick = () => live(1, "Heart rate");
+$("btnLiveO2").onclick = () => live(3, "SpO₂");
+$("btnFind").onclick = async () => { if (await ensureConnected()) await send(packet(0x50, [0x55, 0xaa])); };
+$("btnForget").onclick = async () => { store.del("devId"); store.del("devName"); try { dev?.gatt?.disconnect(); } catch {} dev = null; await ensureConnected(); showState(); };
+async function copy(text){ try { await navigator.clipboard.writeText(text); alert("Copied"); } catch { const t = document.createElement("textarea"); t.value = text; document.body.appendChild(t); t.select(); document.execCommand("copy"); t.remove(); alert("Copied"); } }
+$("btnCopy").onclick = () => lastOut && copy(JSON.stringify(lastOut));
+$("btnDbg").onclick = () => copy(logLines.join("\n"));
+showState();
+log("page loaded · bluetooth " + (navigator.bluetooth ? "available" : "NOT available") + (navigator.bluetooth?.getDevices ? " · can remember ring" : ""));
+</script>
+</body>
+</html>

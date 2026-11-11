@@ -1,0 +1,658 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#F2F3F7">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Ring">
+<title>Ring</title>
+<script>
+// pick the theme before anything paints: saved choice, else the phone's setting
+(function(){ var t; try { t = localStorage.getItem("rs_theme"); } catch (e) {}
+  if (!t) t = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  document.documentElement.dataset.theme = t; })();
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Figtree:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F2F3F7; --card:#FFFFFF; --ink:#171923; --ink2:#5A6072; --ink3:#8B91A3; --line:rgba(23,25,35,.09); --track:rgba(23,25,35,.08);
+  --rec:#12A06C; --rec-t:#DDF5EA; --amber:#C98A00; --amber-t:#FBF0CF; --warn:#D7383E; --warn-t:#FCE4E4;
+  --sleep:#5753D6; --sleep-t:#E9E8FB; --eve:#E26D1F; --eve-t:#FDEBDD; --move:#0F85D6; --move-t:#DDEFFC;
+  --deep:#3B38B5; --rem:#9A8CF2; --light:#B9C0F6; --awake:#F0B02E;
+  --display:"Bricolage Grotesque","Avenir Next","Segoe UI",sans-serif;
+  --text:"Figtree",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+}
+:root[data-theme=dark]{
+  --bg:#171925; --card:#212437; --ink:#F1F2F7; --ink2:#AAB0C4; --ink3:#777D95; --line:rgba(241,242,247,.1); --track:rgba(241,242,247,.1);
+  --rec:#3DD598; --rec-t:#1C3A36; --amber:#F2BC3D; --amber-t:#3D3420; --warn:#FF6A6E; --warn-t:#45242B;
+  --sleep:#918FF9; --sleep-t:#2B2B55; --eve:#FF9A4D; --eve-t:#42291C; --move:#52B7F8; --move-t:#1B3349;
+  --deep:#6F6CF2; --rem:#B6ABFF; --light:#464B8C; --awake:#F2BC3D;
+}
+*{box-sizing:border-box}
+html{background:var(--bg);-webkit-text-size-adjust:100%}
+body{margin:0 auto;max-width:560px;padding:calc(14px + env(safe-area-inset-top)) 14px calc(36px + env(safe-area-inset-bottom));
+  color:var(--ink);font:400 15px/1.5 var(--text);-webkit-font-smoothing:antialiased}
+button{font:inherit;color:inherit;cursor:pointer}
+:focus-visible{outline:2px solid var(--move);outline-offset:2px}
+.num{font-family:var(--display);font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:-.01em;line-height:1}
+.soft{color:var(--ink2)} .faint{color:var(--ink3);font-size:13px}
+.good{color:var(--rec)} .mid{color:var(--amber)} .bad{color:var(--warn)}
+
+/* top bar */
+.top{display:flex;justify-content:space-between;align-items:center;padding:4px 6px 14px}
+.top h1{font:800 30px/1 var(--display);margin:0;letter-spacing:-.02em}
+.top .sub{font-size:13px;color:var(--ink3);margin-top:4px}
+.tools{display:flex;gap:8px}
+.round{width:40px;height:40px;border-radius:50%;border:0;background:var(--card);display:grid;place-items:center}
+.round svg{width:19px;height:19px}
+.round:disabled{opacity:.35;cursor:default}
+:root[data-theme=dark] .sun, :root:not([data-theme=dark]) .moon{display:none}
+
+.notice{background:var(--card);border-radius:16px;padding:12px 14px;margin-bottom:10px;font-size:14px;color:var(--ink2);display:flex;gap:10px}
+.notice:before{content:"";flex:none;width:8px;height:8px;border-radius:50%;background:var(--amber);margin-top:7px}
+
+/* panels */
+.panel{background:var(--card);border-radius:26px;padding:20px 18px;margin-bottom:12px}
+.ph{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+.ph h2{font:800 22px/1 var(--display);margin:0;display:flex;align-items:center;gap:10px;letter-spacing:-.01em}
+.badge{width:34px;height:34px;border-radius:11px;display:grid;place-items:center;background:var(--tint);color:var(--hue);flex:none}
+.badge svg{width:19px;height:19px}
+.navs{display:flex;gap:6px}
+.navs .round{background:var(--bg);width:36px;height:36px;font-size:18px}
+.block{border-top:1px solid var(--line);margin-top:18px;padding-top:16px}
+.bh{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.bh h3{font:600 15px var(--text);margin:0}
+.headline{font:800 26px/1.1 var(--display);margin:6px 0 2px;letter-spacing:-.01em}
+.headline small{font:500 14px var(--text);color:var(--ink3);margin-left:4px;letter-spacing:0}
+p.say{margin:4px 0 0;color:var(--ink2);font-size:14px;max-width:48ch}
+
+/* recovery hero */
+.hero{background:var(--hero-t,var(--card));transition:background .4s}
+.herorow{display:flex;gap:16px;align-items:center}
+#face{width:118px;height:118px;flex:none}
+#arc{transition:stroke-dasharray 1.1s cubic-bezier(.2,.8,.2,1)}
+.eye{transform-box:fill-box;transform-origin:center;animation:blink 6s infinite}
+@keyframes blink{0%,93%,100%{transform:scaleY(1)}96.5%{transform:scaleY(.1)}}
+.score{font-size:76px}
+.verdict{font:800 22px/1.1 var(--display);margin-top:2px}
+.sick{background:var(--card);border-radius:18px;padding:14px 16px;margin-top:16px}
+.sick b{font:800 17px var(--display);color:var(--warn);display:block;margin-bottom:4px}
+.sick p{margin:0;font-size:14px;color:var(--ink)}
+.drivers{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:16px}
+.drv{background:var(--drv,var(--card));border-radius:16px;padding:11px 11px;min-width:0}
+.drv .k{font-size:12.5px;color:var(--ink2)}
+.drv .v{font-size:21px;margin:5px 0 4px;white-space:nowrap}
+.drv .v small{font:500 12px var(--text);color:var(--ink3);margin-left:2px}
+.drv .d{font-size:12.5px;font-weight:600;white-space:nowrap}
+.strip{margin-top:8px}
+.strip svg{width:100%;height:auto;display:block}
+
+/* gauges and bars */
+.stagebar{display:flex;height:16px;border-radius:8px;overflow:hidden;margin:14px 0 10px;background:var(--track)}
+.legend{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.legend div{font-size:12.5px;color:var(--ink3)}
+.legend i{display:inline-block;width:9px;height:9px;border-radius:3px;margin-right:5px}
+.legend .num{display:block;font-size:19px;color:var(--ink);margin:3px 0 0}
+.trio{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:14px}
+.trio>div{background:var(--bg);border-radius:16px;padding:11px 12px;min-width:0}
+.trio .k{font-size:12.5px;color:var(--ink2)} .trio .v{font-size:22px;margin:4px 0 2px;white-space:nowrap}
+.trio .v small{font:500 12px var(--text);color:var(--ink3);margin-left:2px} .trio .d{font-size:12px;color:var(--ink3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.prog{height:14px;border-radius:7px;background:var(--track);overflow:hidden;margin-top:12px}
+.prog i{display:block;height:100%;border-radius:7px;background:var(--hue);transition:width .8s cubic-bezier(.2,.8,.2,1)}
+.step{display:inline-flex;align-items:center;gap:2px;background:var(--bg);border-radius:999px;padding:3px}
+.step button{width:30px;height:30px;border-radius:50%;border:0;background:var(--card);font-weight:600;line-height:1}
+.step span{font-size:13px;font-weight:600;min-width:58px;text-align:center}
+
+.chart{position:relative;touch-action:pan-y;user-select:none;-webkit-user-select:none;margin-top:10px}
+.chart svg{width:100%;height:auto;display:block;overflow:visible}
+.tick{fill:var(--ink3);font:500 10.5px var(--text)}
+.grid{stroke:var(--line);stroke-width:1}
+.readout{font-size:13px;color:var(--ink2);text-align:right;min-height:20px;white-space:nowrap}
+.readout b{font:800 18px var(--display);color:var(--ink);margin-right:3px}
+.readout .when{color:var(--ink3);margin-left:5px}
+.seg{display:inline-flex;background:var(--bg);border-radius:999px;padding:3px}
+.seg button{background:none;border:0;border-radius:999px;padding:6px 12px;font-size:13px;color:var(--ink2)}
+.seg button[aria-pressed=true]{background:var(--ink);color:var(--card);font-weight:600}
+.metric{border-top:1px solid var(--line);padding:16px 0 2px}
+.metric:first-child{border-top:0;padding-top:4px}
+.metric h3{font:600 15px var(--text);margin:0}
+.metric .note{font-size:12.5px;color:var(--ink3);margin:6px 0 0}
+
+.setup input{width:100%;font:inherit;background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:12px;padding:11px;margin:4px 0 10px}
+.cta{background:var(--ink);color:var(--card);border:0;border-radius:999px;padding:12px 20px;font-weight:600}
+.skel{height:240px;border-radius:26px;background:var(--card);margin-bottom:12px;opacity:.6}
+footer{margin-top:20px;font-size:12.5px;color:var(--ink3);text-align:center}
+@media (prefers-reduced-motion:reduce){#arc,.prog i,.hero{transition:none}.eye{animation:none}}
+</style>
+</head>
+<body>
+<header class="top">
+  <div><h1 id="day">Today</h1><div class="sub" id="sync">Loading your data</div></div>
+  <div class="tools">
+    <button class="round" id="theme" aria-label="Switch between light and dark">
+      <svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg>
+      <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.4 1.4M17.6 17.6 19 19M5 19l1.4-1.4M17.6 6.4 19 5"/></svg>
+    </button>
+    <button class="round" id="reload" aria-label="Refresh"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a8 8 0 1 1-2.34-5.66"/><path d="M20 4v5h-5"/></svg></button>
+  </div>
+</header>
+
+<div id="setup" class="panel setup" hidden>
+  <div class="ph"><h2>Connect your data</h2></div>
+  <p class="soft" style="margin-top:0">Use the same details as the sync page. The token stays on this phone.</p>
+  <label class="faint">GitHub username<input id="u" autocapitalize="off" autocorrect="off"></label>
+  <label class="faint">Data repo<input id="r" value="ring-data" autocapitalize="off" autocorrect="off"></label>
+  <label class="faint">Token<input id="t" type="password" autocapitalize="off" autocorrect="off"></label>
+  <button class="cta" id="save">Save and load</button>
+  <p class="faint" id="err"></p>
+</div>
+
+<div id="loading"><div class="skel"></div><div class="skel"></div></div>
+
+<main id="app" hidden>
+  <div id="notices"></div>
+
+  <!-- RECOVERY -->
+  <section class="panel hero" id="hero" aria-labelledby="recH">
+    <div class="ph" style="--hue:var(--state);--tint:var(--card)"><h2 id="recH"><span class="badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l2.5-6 4 12 2.5-6h5"/></svg></span>Recovery</h2></div>
+    <div class="herorow">
+      <svg id="face" viewBox="0 0 120 120" role="img" aria-label="Recovery"></svg>
+      <div style="min-width:0"><div class="num score" id="score">–</div><div class="verdict" id="verdict"></div></div>
+    </div>
+    <p class="say" id="verdictp" style="color:var(--ink);margin-top:12px"></p>
+    <div id="sick"></div>
+    <div class="drivers" id="drivers"></div>
+    <div id="recExtra">
+      <div class="faint" style="margin-top:8px">Arrows compare last night with your normal.</div>
+      <div class="faint" style="margin-top:14px;color:var(--ink)">Last 14 days</div>
+      <div class="strip"><svg id="strip" viewBox="0 0 340 62" role="img" aria-label="Recovery over the last 14 days"></svg></div>
+    </div>
+  </section>
+
+  <!-- SLEEP -->
+  <section class="panel" style="--hue:var(--sleep);--tint:var(--sleep-t)" aria-labelledby="slH">
+    <div class="ph"><h2 id="slH"><span class="badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg></span>Sleep</h2>
+      <div class="navs"><button class="round" id="nPrev" aria-label="Previous night">‹</button><button class="round" id="nNext" aria-label="Next night">›</button></div></div>
+    <div class="faint" id="nightWhen"></div>
+    <div class="headline" id="nightDur" style="font-size:40px"></div>
+    <p class="say" id="nightSay"></p>
+    <div class="stagebar" id="stagebar"></div>
+    <div class="legend" id="stagelegend"></div>
+    <div class="chart" id="hypno"></div>
+
+    <div class="block">
+      <div class="bh"><h3>Consistency</h3><span class="faint">last 14 nights</span></div>
+      <div class="headline" id="consHead"></div>
+      <p class="say" id="consSay"></p>
+      <div class="chart" id="consChart"></div>
+    </div>
+
+    <div class="block">
+      <div class="bh"><h3>Sleep debt</h3>
+        <div class="step" aria-label="Nightly sleep target"><button id="slMinus" aria-label="Lower sleep target">−</button><span id="slTarget"></span><button id="slPlus" aria-label="Raise sleep target">+</button></div></div>
+      <div class="headline" id="debtHead"></div>
+      <p class="say" id="debtSay"></p>
+      <div class="chart" id="debtChart"></div>
+    </div>
+  </section>
+
+  <!-- EVENING -->
+  <section class="panel" style="--hue:var(--eve);--tint:var(--eve-t)" aria-labelledby="evH">
+    <div class="ph"><h2 id="evH"><span class="badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 18h16M7 18a5 5 0 0 1 10 0M12 6v3M5.5 9.5l2 2M18.5 9.5l-2 2"/></svg></span>Evening</h2></div>
+    <div class="bh"><h3>Last hour before bed</h3><span class="faint" id="bedWhen"></span></div>
+    <div class="headline" style="font-size:40px"><span id="bedHr">–</span><small>bpm</small> <span id="bedZone" style="font-size:22px;margin-left:8px"></span></div>
+    <div class="chart" id="gauge"></div>
+    <p class="say" id="bedSay"></p>
+    <div class="chart" id="bedSpark"></div>
+
+    <div class="block">
+      <div class="bh"><h3>Wind-down speed</h3><span class="faint" id="wdWhen"></span></div>
+      <div class="headline" id="wdHead"></div>
+      <p class="say" id="wdSay"></p>
+      <div class="chart" id="wdChart"></div>
+      <p class="say faint" id="bedInsight" style="margin-top:10px"></p>
+    </div>
+  </section>
+
+  <!-- MOVEMENT -->
+  <section class="panel" style="--hue:var(--move);--tint:var(--move-t)" aria-labelledby="mvH">
+    <div class="ph"><h2 id="mvH"><span class="badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="13" cy="4.5" r="1.8"/><path d="M9 21l2.5-6-2.5-3 1.5-4.5 4 1 2 3.5h3M6 12l2-3.5"/></svg></span>Movement</h2>
+      <div class="navs"><button class="round" id="dPrev" aria-label="Previous day">‹</button><button class="round" id="dNext" aria-label="Next day">›</button></div></div>
+    <div class="bh"><span class="faint" id="mvWhen"></span>
+      <div class="step" aria-label="Daily step goal"><button id="stMinus" aria-label="Lower step goal">−</button><span id="stGoal"></span><button id="stPlus" aria-label="Raise step goal">+</button></div></div>
+    <div class="headline" style="font-size:40px"><span id="mvSteps">–</span><small>steps</small></div>
+    <div class="prog"><i id="mvBar" style="width:0"></i></div>
+    <p class="say" id="mvSay"></p>
+    <div class="trio" id="mvTrio"></div>
+    <div class="block">
+      <div class="bh"><h3>Hour by hour</h3><div class="readout" id="hourRead"></div></div>
+      <div class="chart" id="hours"></div>
+    </div>
+    <div class="block">
+      <div class="bh"><h3>Heart rate through the day</h3><div class="readout" id="dayRead"></div></div>
+      <div class="chart" id="trace"></div>
+    </div>
+  </section>
+
+  <!-- TRENDS -->
+  <section class="panel" aria-labelledby="trH">
+    <div class="ph"><h2 id="trH">Trends</h2>
+      <div class="seg" id="range" role="group" aria-label="Range"><button data-n="14" aria-pressed="true">2 weeks</button><button data-n="30" aria-pressed="false">Month</button><button data-n="90" aria-pressed="false">3 months</button></div></div>
+    <div id="metrics"></div>
+  </section>
+
+  <footer id="foot"></footer>
+</main>
+
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+const TZ = "America/Indiana/Indianapolis";
+const store = { get(k){ try { return localStorage.getItem("rs_" + k) || ""; } catch { return ""; } }, set(k, v){ try { localStorage.setItem("rs_" + k, v); } catch {} } };
+const LOCAL = new URLSearchParams(location.search).has("local");
+const READY = 8, WIRED = 15;                 // pre-bed: bpm above resting
+let stepGoal = +store.get("goal_steps") || 8000, sleepTarget = +store.get("goal_sleep") || 8;
+
+// ---------- theme ----------
+function applyTheme(t){ document.documentElement.dataset.theme = t; document.querySelector('meta[name=theme-color]').content = t === "dark" ? "#171925" : "#F2F3F7"; }
+applyTheme(document.documentElement.dataset.theme);
+$("theme").onclick = () => { const t = document.documentElement.dataset.theme === "dark" ? "light" : "dark"; store.set("theme", t); applyTheme(t); };
+
+// ---------- data ----------
+async function getFile(path){
+  if (window.__DEMO) return window.__DEMO[path] ?? null;
+  if (LOCAL) { const r = await fetch("./" + path + "?t=" + Date.now()); return r.ok ? r.text() : null; }
+  const u = store.get("user"), repo = store.get("repo") || "ring-data", tok = store.get("tok");
+  const r = await fetch(`https://api.github.com/repos/${u}/${repo}/contents/${path}?t=${Date.now()}`,
+    { headers: { Authorization: "Bearer " + tok, Accept: "application/vnd.github.raw+json", "X-GitHub-Api-Version": "2022-11-28" }, cache: "no-store" });
+  if (r.status === 404) return null;
+  if (!r.ok) { let m = ""; try { m = (await r.json()).message; } catch {} throw new Error(`GitHub said ${r.status}${m ? " (" + m + ")" : ""}`); }
+  return r.text();
+}
+function csv(text){
+  if (!text) return [];
+  const [head, ...rows] = text.trim().split(/\r?\n/), keys = head.split(",");
+  return rows.map(l => { const v = l.split(","), o = {}; keys.forEach((k, i) => { const x = v[i]; o[k] = x === "" || x === undefined ? null : (/^-?\d+(\.\d+)?(e-?\d+)?$/.test(x) ? +x : x); }); return o; });
+}
+const tsOf = s => s ? new Date(s.replace(" ", "T")) : null;
+const series = (rows, key) => rows.map(r => ({ t: new Date(r.ts * 1000), v: r[key] }));
+
+// ---------- helpers ----------
+const nn = v => v != null && !Number.isNaN(v);
+const avg = a => a.length ? a.reduce((x, y) => x + y, 0) / a.length : null;
+const med = a => { const s = [...a].sort((x, y) => x - y); return s.length ? s[Math.floor(s.length / 2)] : null; };
+const localDate = d => d.toLocaleDateString("en-CA", { timeZone: TZ });
+const hourOf = d => { const p = new Intl.DateTimeFormat("en-US", { timeZone: TZ, hour: "numeric", minute: "numeric", hourCycle: "h23" }).formatToParts(d); return +p.find(x => x.type === "hour").value + +p.find(x => x.type === "minute").value / 60; };
+const clock = d => d.toLocaleTimeString("en-US", { timeZone: TZ, hour: "numeric", minute: "2-digit" }).replace(" ", "").toLowerCase();
+const hourLbl = h => { const x = ((Math.round(h) % 24) + 24) % 24; return (x % 12 || 12) + (x < 12 ? "am" : "pm"); };
+const clockMin = m => { m = ((Math.round(m) % 1440) + 1440) % 1440; const H = Math.floor(m / 60), M = m % 60; return `${(H % 12) || 12}:${String(M).padStart(2, "0")}${H < 12 ? "am" : "pm"}`; };
+const dur = h => !nn(h) ? "–" : `${Math.floor(h + 1e-9)}h ${String(Math.round((h % 1) * 60) % 60).padStart(2, "0")}m`;
+const durMin = m => !nn(m) ? "–" : m >= 60 ? `${Math.floor(m / 60)}h ${String(Math.round(m % 60)).padStart(2, "0")}m` : `${Math.round(m)}m`;
+const shortDate = s => new Date(s + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
+const dow = s => new Date(s + "T12:00:00").toLocaleDateString("en-US", { weekday: "narrow" });
+const stateOf = s => !nn(s) ? ["var(--ink3)", "var(--card)"] : s >= 67 ? ["var(--rec)", "var(--rec-t)"] : s >= 34 ? ["var(--amber)", "var(--amber-t)"] : ["var(--warn)", "var(--warn-t)"];
+const zoneOf = g => g <= READY ? ["Ready for sleep", "var(--rec)"] : g <= WIRED ? ["Winding down", "var(--amber)"] : ["Still wired", "var(--warn)"];
+
+// ---------- SVG chart kit (colours are CSS variables, so charts follow the theme) ----------
+const W = 340;
+const svg = (h, body) => `<svg viewBox="0 0 ${W} ${h}">${body}</svg>`;
+function niceStep(raw){ const p = Math.pow(10, Math.floor(Math.log10(raw || 1))), f = raw / p; return (f < 1.5 ? 1 : f < 3 ? 2 : f < 7 ? 5 : 10) * p; }
+function yAxis(lo, hi, y, l, fmt){
+  const step = niceStep((hi - lo) / 3); let out = "";
+  for (let v = Math.ceil(lo / step - 1e-9) * step; v <= hi + 1e-9; v += step) out += `<line class="grid" x1="${l}" x2="${W}" y1="${y(v)}" y2="${y(v)}"/><text class="tick" x="${l - 6}" y="${y(v) + 3.5}" text-anchor="end">${fmt(Math.round(v * 100) / 100)}</text>`;
+  return out;
+}
+function xLabels(labels, x, h){
+  const n = labels.length; let out = "";
+  if (n <= 7) return labels.map((t, i) => `<text class="tick" x="${x(i)}" y="${h - 4}" text-anchor="middle">${t}</text>`).join("");
+  const k = 4;
+  for (let j = 0; j < k; j++) { const i = Math.round(j * (n - 1) / Math.max(1, k - 1)); out += `<text class="tick" x="${x(i)}" y="${h - 4}" text-anchor="${j === 0 ? "start" : j === k - 1 ? "end" : "middle"}">${labels[i]}</text>`; }
+  return out;
+}
+function linePath(vals, x, y){ let d = "", pen = false; vals.forEach((v, i) => { if (!nn(v)) { pen = false; return; } d += (pen ? "L" : "M") + x(i).toFixed(1) + " " + y(v).toFixed(1); pen = true; }); return d; }
+// tap or drag across a chart to read its values
+function scrub(host, n, xOf, readEl, readFn, h){
+  const s = host.querySelector("svg"); if (!s || !readEl) return;
+  const g = document.createElementNS("http://www.w3.org/2000/svg", "line");
+  g.setAttribute("y1", 4); g.setAttribute("y2", h - 18); g.style.stroke = "var(--ink)"; g.setAttribute("opacity", "0"); s.appendChild(g);
+  const lastIdx = () => { for (let i = n - 1; i >= 0; i--) if (readFn(i)) return i; return n - 1; };
+  const dflt = () => { readEl.innerHTML = readFn(lastIdx()) || ""; g.setAttribute("opacity", "0"); };
+  const at = e => { const r = s.getBoundingClientRect(), px = (e.clientX - r.left) / r.width * W; let b = 0, bd = 1e9; for (let i = 0; i < n; i++) { const d = Math.abs(xOf(i) - px); if (d < bd) { bd = d; b = i; } } return b; };
+  const move = e => { const i = at(e), txt = readFn(i); if (!txt) return; readEl.innerHTML = txt; g.setAttribute("x1", xOf(i)); g.setAttribute("x2", xOf(i)); g.setAttribute("opacity", ".35"); };
+  s.addEventListener("pointerdown", move); s.addEventListener("pointermove", e => { if (e.pointerType === "mouse" || e.buttons) move(e); });
+  s.addEventListener("pointerleave", dflt); s.addEventListener("pointerup", e => { if (e.pointerType !== "mouse") setTimeout(dflt, 1800); });
+  dflt();
+}
+function lineChart(host, o){
+  const h = o.h || 140, l = 30, r = 4, t = 8, b = 22, n = o.labels.length;
+  const all = [...o.lines.flatMap(s => s.v), ...(o.band ? [...o.band.lo, ...o.band.hi] : [])].filter(nn);
+  if (!all.length) { host.innerHTML = `<p class="faint">Nothing recorded in this range yet.</p>`; if (o.read) o.read.innerHTML = ""; return; }
+  let lo = o.min ?? Math.min(...all), hi = o.max ?? Math.max(...all); const pad = (hi - lo) * .12 || 2; if (o.min == null) lo -= pad; if (o.max == null) hi += pad;
+  const x = i => n === 1 ? (l + W - r) / 2 : l + i * (W - l - r) / (n - 1), y = v => t + (1 - (v - lo) / (hi - lo)) * (h - t - b);
+  let body = yAxis(lo, hi, y, l, o.fmt || (v => v));
+  if (o.band) { const up = [], dn = []; o.band.hi.forEach((v, i) => nn(v) && up.push(`${x(i)},${y(v)}`)); o.band.lo.forEach((v, i) => nn(v) && dn.unshift(`${x(i)},${y(v)}`));
+    if (up.length > 1) body += `<polygon points="${up.concat(dn).join(" ")}" style="fill:${o.lines[0].color}" opacity=".16"/>`; }
+  o.lines.forEach(s => {
+    body += `<path d="${linePath(s.v, x, y)}" fill="none" style="stroke:${s.color}" stroke-width="${s.w || 2.4}" stroke-linejoin="round" stroke-linecap="round" ${s.dash ? `stroke-dasharray="${s.dash}"` : ""}/>`;
+    if (s.dots !== false && n <= 31) s.v.forEach((v, i) => { if (nn(v)) body += `<circle cx="${x(i)}" cy="${y(v)}" r="2.8" style="fill:${s.color}"/>`; });
+  });
+  (o.marks || []).forEach(i => { const v = o.lines[0].v[i]; if (nn(v)) body += `<circle cx="${x(i)}" cy="${y(v)}" r="6" style="fill:var(--warn);stroke:var(--card)" stroke-width="2.5"/>`; });
+  host.innerHTML = svg(h, body + xLabels(o.labels, x, h));
+  if (o.read) scrub(host, n, x, o.read, o.readFn, h);
+}
+function barChart(host, o){
+  const h = o.h || 120, l = 30, r = 4, t = 8, b = 22, n = o.labels.length, bw = (W - l - r) / Math.max(n, 1);
+  const tot = i => o.stacks.reduce((a, s) => a + (s.v[i] || 0), 0);
+  const top = o.max ?? Math.max(1, o.thr || 0, ...o.labels.map((_, i) => tot(i))) * 1.12, lo = 0;
+  const x = i => l + (i + .5) * bw, y = v => t + (1 - (v - lo) / (top - lo)) * (h - t - b);
+  let body = yAxis(lo, top, y, l, o.fmt || (v => v));
+  o.labels.forEach((_, i) => { let acc = 0;
+    o.stacks.forEach(s => { const v = s.v[i]; if (!nn(v) || v <= 0) return; const y1 = y(acc + v), y0 = y(acc), c = typeof s.color === "function" ? s.color(i) : s.color, op = s.opacity ? s.opacity(i) : 1;
+      body += `<rect x="${(x(i) - bw * .33).toFixed(1)}" y="${y1.toFixed(1)}" width="${(bw * .66).toFixed(1)}" height="${Math.max(1.5, y0 - y1).toFixed(1)}" rx="${Math.min(4, bw * .22).toFixed(1)}" style="fill:${c}" opacity="${op}"/>`; acc += v; }); });
+  if (o.thr != null) body += `<line x1="${l}" x2="${W}" y1="${y(o.thr)}" y2="${y(o.thr)}" style="stroke:var(--ink2)" stroke-dasharray="3 4"/>`;
+  host.innerHTML = svg(h, body + xLabels(o.labels, x, h));
+  if (o.read) scrub(host, n, x, o.read, o.readFn, h);
+}
+
+// ---------- recovery face ----------
+function face(score, mood, progress){
+  const C = 2 * Math.PI * 50, [col] = stateOf(score), frac = nn(score) ? score / 100 : progress;
+  let s = `<circle cx="60" cy="60" r="50" fill="none" style="stroke:var(--track)" stroke-width="11"/>
+    <circle id="arc" cx="60" cy="60" r="50" fill="none" style="stroke:${col}" stroke-width="11" stroke-linecap="round" stroke-dasharray="0 ${C}" transform="rotate(-90 60 60)"/>`;
+  const ink = `fill="none" style="stroke:var(--ink)" stroke-width="4.2" stroke-linecap="round"`;
+  if (mood === "happy") s += `<path d="M39 56q7-9 14 0" ${ink}/><path d="M67 56q7-9 14 0" ${ink}/><path d="M43 68q17 17 34 0" ${ink}/>`;
+  else if (mood === "ok") s += `<circle class="eye" cx="46" cy="54" r="4.4" style="fill:var(--ink)"/><circle class="eye" cx="74" cy="54" r="4.4" style="fill:var(--ink)"/><path d="M47 71q13 8 26 0" ${ink}/>`;
+  else if (mood === "tired") s += `<path d="M40 55h12" ${ink}/><path d="M68 55h12" ${ink}/><path d="M48 76q12-8 24 0" ${ink}/>`;
+  else if (mood === "sick") s += `<path d="M40 55h12" ${ink}/><path d="M68 55h12" ${ink}/><path d="M44 74q4-5 8 0t8 0t8 0" ${ink}/><path d="M70 74l14 9" fill="none" style="stroke:var(--warn)" stroke-width="4.4" stroke-linecap="round"/><circle cx="86" cy="84.5" r="4.6" style="fill:var(--warn)"/>`;
+  else s += `<path d="M39 53q7 7 14 0" ${ink}/><path d="M67 53q7 7 14 0" ${ink}/><circle cx="60" cy="73" r="4" ${ink}/><text x="88" y="34" style="fill:var(--ink3);font:800 15px var(--display)">z</text><text x="97" y="24" style="fill:var(--ink3);font:800 11px var(--display)">z</text>`;
+  $("face").innerHTML = s;
+  requestAnimationFrame(() => requestAnimationFrame(() => $("arc").setAttribute("stroke-dasharray", `${Math.max(0.01, frac * C).toFixed(1)} ${C}`)));
+}
+
+// ---------- state ----------
+let D = {}, dayOffset = 0, nightIdx = -1, range = 14;
+
+async function load(){
+  $("loading").hidden = false; $("app").hidden = true; $("setup").hidden = true;
+  $("day").textContent = new Date().toLocaleDateString("en-US", { timeZone: TZ, weekday: "long" });
+  if (!window.__DEMO && !LOCAL && !(store.get("user") && store.get("tok"))) { showSetup(); return; }
+  try {
+    const files = ["daily.csv", "hr.csv", "steps.csv", "sleep_stages.csv", "meta.json"];
+    const [daily, hr, steps, stages, meta] = await Promise.all(files.map(f => getFile("data/" + f)));
+    if (!hr) { $("loading").hidden = true; $("sync").textContent = "No data yet. Sync your ring first."; return; }
+    D = { daily: csv(daily), hr: series(csv(hr), "bpm"), steps: series(csv(steps), "steps"),
+      stages: csv(stages).map(r => ({ t: new Date(r.ts * 1000), stage: r.stage, min: r.minutes })), meta: meta ? JSON.parse(meta) : {} };
+    D.daily.forEach(r => { r.sleep_start = tsOf(r.sleep_start); r.sleep_end = tsOf(r.sleep_end); });
+    D.nights = D.daily.filter(r => r.sleep_start);
+    nightIdx = D.nights.length - 1; dayOffset = 0;
+    $("loading").hidden = true; $("app").hidden = false;
+    renderAll();
+  } catch (e) { showSetup(e.message); }
+}
+function showSetup(msg){
+  $("loading").hidden = true; $("setup").hidden = false; $("sync").textContent = "Not connected";
+  $("u").value = store.get("user"); $("r").value = store.get("repo") || "ring-data"; $("err").textContent = msg ? msg + ". Check the username, repo and token." : "";
+}
+$("save").onclick = () => { store.set("user", $("u").value.trim()); store.set("repo", $("r").value.trim() || "ring-data"); if ($("t").value.trim()) store.set("tok", $("t").value.trim()); $("t").value = ""; load(); };
+$("reload").onclick = load;
+
+function renderAll(){
+  const m = D.meta, synced = m.synced_at ? new Date(m.synced_at) : null, today = localDate(new Date());
+  const dateStr = new Date().toLocaleDateString("en-US", { timeZone: TZ, month: "long", day: "numeric" });
+  $("sync").textContent = dateStr + (synced ? `, synced ${localDate(synced) === today ? "" : synced.toLocaleDateString("en-US", { timeZone: TZ, weekday: "short" }) + " "}at ${clock(synced)}${m.battery != null ? `, ring ${m.battery}%` : ""}` : "");
+  $("foot").textContent = `${D.hr.length.toLocaleString()} heart-rate readings across ${D.nights.length} nights`;
+  const N = [];
+  if (m.battery != null && m.battery < 25) N.push(`Ring battery is at ${m.battery}%. Charge it before bed.`);
+  if (synced && Date.now() - synced > 3 * 864e5) N.push(`Last sync was ${Math.round((Date.now() - synced) / 864e5)} days ago. The ring only keeps about a week.`);
+  const yday = D.daily.filter(r => r.date < today).slice(-1)[0];
+  if (yday && yday.coverage < .5) N.push(`Only ${Math.round(yday.coverage * 100)}% of yesterday was recorded, so treat its numbers loosely.`);
+  Object.keys(m.errors || {}).forEach(k => N.push(`The last sync couldn't read ${k}.`));
+  $("notices").innerHTML = N.map(t => `<div class="notice">${t}</div>`).join("");
+  renderRecovery(); renderSleep(); renderEvening(); renderMove(); renderTrends();
+}
+
+// ---------- recovery ----------
+function renderRecovery(){
+  const m = D.meta, n = D.daily, need = m.min_baseline || 7, today = localDate(new Date());
+  const L = [...n].reverse().find(r => nn(r.rhr) || nn(r.hrv)) || {}, have = n.filter(r => nn(r.rhr)).length;
+  const hero = $("hero"), sick = L.sick || 0;
+  if (nn(L.recovery)) {
+    const s = Math.round(L.recovery), [col, tint] = stateOf(s);
+    hero.style.setProperty("--hero-t", tint); hero.style.setProperty("--state", col); hero.style.removeProperty("--drv"); $("recExtra").hidden = false;
+    face(s, sick ? "sick" : s >= 67 ? "happy" : s >= 34 ? "ok" : "tired");
+    $("score").textContent = s;
+    const [v, p] = s >= 67 ? ["Good to go", "Your body bounced back well. A big day is fine."]
+      : s >= 34 ? ["Doing okay", "You're in the middle of your range. A normal day, nothing heroic."]
+      : ["Take it easy", "Your body is working harder than usual. Keep today light and get to bed early."];
+    $("verdict").textContent = v; $("verdict").style.color = col; $("verdictp").textContent = p;
+  } else {
+    hero.style.setProperty("--hero-t", "var(--card)"); hero.style.setProperty("--state", "var(--ink3)"); hero.style.setProperty("--drv", "var(--bg)"); $("recExtra").hidden = true;
+    face(null, "learning", Math.min(1, have / need));
+    $("score").textContent = `${Math.min(have, need)}/${need}`; $("verdict").textContent = "Learning your normal"; $("verdict").style.color = "var(--ink)";
+    $("verdictp").textContent = `Wear the ring to bed. Your recovery score starts after ${need} nights.`;
+  }
+  // sick-day warning
+  if (sick && nn(L.rhr_base) && nn(L.hrv_base)) {
+    const up = Math.round(L.rhr - L.rhr_base), down = Math.round(L.hrv_base - L.hrv);
+    $("sick").innerHTML = `<div class="sick"><b>${sick >= 2 ? "You may be getting sick" : "Keep an eye on this"}</b>
+      <p>Resting heart rate is up ${up} bpm and HRV is down ${down} ms from your normal${sick >= 2 ? ", for the second night in a row" : ""}. That pattern often shows up a day before a cold does. A night of drinking or a very hard day can look the same.</p>
+      <p style="margin-top:8px">${sick >= 2 ? "Rest today, drink plenty of water, and skip anything strenuous." : "If it repeats tomorrow, treat it as a rest day."}</p></div>`;
+  } else $("sick").innerHTML = "";
+  // what drove it
+  const cell = (k, v, unit, val, base, goodDown, f) => {
+    let d = `<span class="faint">learning</span>`;
+    if (nn(val) && nn(base)) { const x = val - base, small = Math.abs(x) < (f ? .5 : .5), ok = goodDown ? x < 0 : x > 0;
+      d = small ? `<span class="faint">at normal</span>` : `<span class="${ok ? "good" : "bad"}">${x > 0 ? "▲" : "▼"} ${f ? f(Math.abs(x)) : Math.round(Math.abs(x))}</span>`; }
+    return `<div class="drv"><div class="k">${k}</div><div class="num v">${v}${unit ? `<small>${unit}</small>` : ""}</div><div class="d">${d}</div></div>`;
+  };
+  $("drivers").innerHTML =
+    cell("HRV", nn(L.hrv) ? Math.round(L.hrv) : "–", "ms", L.hrv, L.hrv_base, false) +
+    cell("Resting HR", nn(L.rhr) ? Math.round(L.rhr) : "–", "bpm", L.rhr, L.rhr_base, true) +
+    cell("Sleep", nn(L.sleep_h) ? dur(L.sleep_h) : "–", "", nn(L.sleep_h) ? L.sleep_h * 60 : null, nn(L.sleep_h_base) ? L.sleep_h_base * 60 : null, false, x => Math.round(x) + "m");
+  // 14-day strip
+  const rows = n.filter(r => r.date <= today).slice(-14), bw = 340 / 14, pad = 14 - rows.length; let s = "";
+  for (let i = 0; i < 14; i++) { const r = rows[i - pad], v = r ? r.recovery : null, hgt = nn(v) ? 6 + v / 100 * 36 : 6, x = i * bw + 4;
+    s += `<rect x="${x.toFixed(1)}" y="${(44 - hgt).toFixed(1)}" width="${(bw - 8).toFixed(1)}" height="${hgt.toFixed(1)}" rx="5" style="fill:${nn(v) ? stateOf(v)[0] : "var(--track)"}" opacity="${i === 13 ? 1 : .75}"><title>${r ? shortDate(r.date) + (nn(v) ? ": " + v : ": no score") : ""}</title></rect>`;
+    if (r) s += `<text class="tick" x="${(x + (bw - 8) / 2).toFixed(1)}" y="58" text-anchor="middle" ${i === 13 ? `style="fill:var(--ink);font-weight:600"` : ""}>${dow(r.date)}</text>`; }
+  $("strip").innerHTML = s;
+}
+
+// ---------- sleep ----------
+function renderSleep(){
+  const N = D.nights;
+  if (!N.length) { $("nightDur").textContent = "–"; $("nightWhen").textContent = "Wear the ring to bed and sync in the morning."; ["nightSay", "stagebar", "stagelegend", "hypno", "consHead", "consSay", "consChart", "debtHead", "debtSay", "debtChart"].forEach(i => $(i).innerHTML = ""); $("nPrev").disabled = $("nNext").disabled = true; $("slTarget").textContent = sleepTarget + "h a night"; return; }
+  const r = N[nightIdx];
+  $("nPrev").disabled = nightIdx <= 0; $("nNext").disabled = nightIdx >= N.length - 1;
+  $("nightWhen").textContent = `${nightIdx === N.length - 1 ? "Last night" : r.sleep_start.toLocaleDateString("en-US", { timeZone: TZ, weekday: "long" }) + " night"}, ${clock(r.sleep_start)} to ${clock(r.sleep_end)}`;
+  $("nightDur").textContent = dur(r.sleep_h);
+  const diff = (r.sleep_h - sleepTarget) * 60;
+  $("nightSay").textContent = (Math.abs(diff) < 10 ? `Right on your ${sleepTarget}h target` : diff > 0 ? `${durMin(diff)} over your ${sleepTarget}h target` : `${durMin(-diff)} short of your ${sleepTarget}h target`) + (nn(r.sleep_hr) ? `, averaging ${Math.round(r.sleep_hr)} bpm.` : ".");
+  const t0 = r.sleep_start.getTime(), t1 = r.sleep_end.getTime(), stg = D.stages.filter(s => s.t.getTime() >= t0 - 60e3 && s.t.getTime() < t1);
+  if (stg.length && r.sleep_source === "ring") {
+    const tot = { deep: r.deep_min || 0, rem: r.rem_min || 0, light: r.light_min || 0, awake: r.awake_min || 0 }, all = Object.values(tot).reduce((a, b) => a + b, 0) || 1;
+    const names = [["deep", "Deep"], ["rem", "REM"], ["light", "Light"], ["awake", "Awake"]];
+    $("stagebar").hidden = false;
+    $("stagebar").innerHTML = names.map(([k]) => `<div style="width:${tot[k] / all * 100}%;background:var(--${k})"></div>`).join("");
+    $("stagelegend").innerHTML = names.map(([k, nm]) => `<div><i style="background:var(--${k})"></i>${nm}<span class="num">${durMin(tot[k])}</span>${Math.round(tot[k] / all * 100)}%</div>`).join("");
+    // hypnogram: one lane per stage
+    const l = 40, H = 132, lanes = { awake: 10, rem: 38, light: 66, deep: 94 }, x = t => l + (t - t0) / (t1 - t0) * (W - l - 2);
+    let body = ""; [["Awake", 10], ["REM", 38], ["Light", 66], ["Deep", 94]].forEach(([nm, yy]) => body += `<text class="tick" x="0" y="${yy + 14}">${nm}</text><rect x="${l}" y="${yy}" width="${W - l - 2}" height="20" rx="5" style="fill:var(--track)" opacity=".5"/>`);
+    stg.forEach(s => { const a = x(s.t.getTime()), b = x(s.t.getTime() + s.min * 60e3); body += `<rect x="${a.toFixed(1)}" y="${lanes[s.stage] ?? 66}" width="${Math.max(1.5, b - a - .6).toFixed(1)}" height="20" rx="4" style="fill:var(--${s.stage})"><title>${s.stage} ${s.min} min</title></rect>`; });
+    for (let tt = Math.ceil(t0 / 3600e3) * 3600e3; tt <= t1; tt += 2 * 3600e3) body += `<text class="tick" x="${x(tt)}" y="${H - 4}" text-anchor="middle">${hourLbl(hourOf(new Date(tt)))}</text>`;
+    $("hypno").innerHTML = svg(H, body);
+  } else { $("stagebar").hidden = true; $("stagelegend").innerHTML = ""; $("hypno").innerHTML = `<p class="faint">No sleep stages for this night. The window was estimated from stillness.</p>`; }
+
+  // consistency: when you went to bed and woke up, last 14 nights
+  const last = N.slice(-14), cur = N[N.length - 1], sd = cur.bed_sd, wsd = cur.wake_sd;
+  if (last.length >= 4 && nn(sd)) {
+    const [word, cls] = sd < 30 ? ["Steady", "good"] : sd < 60 ? ["A bit variable", "mid"] : ["All over the place", "bad"];
+    $("consHead").innerHTML = `<span class="${cls}">${word}</span><small>bedtime moves ±${Math.round(sd)} min</small>`;
+    const ab = avg(last.map(r => r.bed_clock)), aw = avg(last.map(r => r.wake_clock));
+    $("consSay").textContent = `You usually go to bed around ${clockMin(ab)} and wake around ${clockMin(aw)}. Wake time moves ±${Math.round(wsd)} min. Keeping both within half an hour helps you fall asleep faster.`;
+    const l = 40, H = 150, lo = Math.min(...last.map(r => r.bed_clock)) - 30, hi = Math.max(...last.map(r => r.wake_clock)) + 30, bw = (W - l - 4) / last.length;
+    const y = v => 6 + (v - lo) / (hi - lo) * (H - 28), x = i => l + (i + .5) * bw;
+    let body = ""; for (let v = Math.ceil(lo / 120) * 120; v <= hi; v += 120) body += `<line class="grid" x1="${l}" x2="${W}" y1="${y(v)}" y2="${y(v)}"/><text class="tick" x="${l - 6}" y="${y(v) + 3.5}" text-anchor="end">${hourLbl(v / 60)}</text>`;
+    last.forEach((r, i) => { body += `<rect x="${(x(i) - bw * .3).toFixed(1)}" y="${y(r.bed_clock).toFixed(1)}" width="${(bw * .6).toFixed(1)}" height="${(y(r.wake_clock) - y(r.bed_clock)).toFixed(1)}" rx="${Math.min(6, bw * .3)}" style="fill:var(--sleep)" opacity="${i === last.length - 1 ? 1 : .6}"/><text class="tick" x="${x(i)}" y="${H - 4}" text-anchor="middle">${dow(r.date)}</text>`; });
+    body += `<line x1="${l}" x2="${W}" y1="${y(ab)}" y2="${y(ab)}" style="stroke:var(--ink2)" stroke-dasharray="3 4"/><line x1="${l}" x2="${W}" y1="${y(aw)}" y2="${y(aw)}" style="stroke:var(--ink2)" stroke-dasharray="3 4"/>`;
+    $("consChart").innerHTML = svg(H, body);
+  } else { $("consHead").innerHTML = `<small style="margin:0">Needs 4 nights</small>`; $("consSay").textContent = "After a few nights, this shows how regular your bedtime and wake time are."; $("consChart").innerHTML = ""; }
+
+  // sleep debt over the last 7 nights
+  $("slTarget").textContent = sleepTarget + "h a night";
+  const wk = N.slice(-7), debt = Math.max(0, wk.reduce((a, r) => a + (sleepTarget - r.sleep_h), 0));
+  $("debtHead").innerHTML = debt < .25 ? `<span class="good">All caught up</span>` : `<span class="${debt < 3 ? "mid" : "bad"}">${dur(debt)} behind</span><small>over ${wk.length} night${wk.length === 1 ? "" : "s"}</small>`;
+  $("debtSay").textContent = debt < .25 ? `You've averaged ${dur(avg(wk.map(r => r.sleep_h)))} a night this week, at or above your target.`
+    : `You've averaged ${dur(avg(wk.map(r => r.sleep_h)))} a night. Going to bed 30 minutes earlier would clear it in about ${Math.ceil(debt / .5)} nights.`;
+  barChart($("debtChart"), { labels: wk.map(r => dow(r.date)), h: 110, thr: sleepTarget, fmt: v => v + "h",
+    stacks: [{ v: wk.map(r => r.sleep_h), color: i => wk[i].sleep_h >= sleepTarget - .17 ? "var(--sleep)" : "var(--amber)" }] });
+}
+$("nPrev").onclick = () => { nightIdx = Math.max(0, nightIdx - 1); renderSleep(); };
+$("nNext").onclick = () => { nightIdx = Math.min(D.nights.length - 1, nightIdx + 1); renderSleep(); };
+$("slMinus").onclick = () => { sleepTarget = Math.max(5, sleepTarget - .5); store.set("goal_sleep", sleepTarget); renderSleep(); };
+$("slPlus").onclick = () => { sleepTarget = Math.min(10, sleepTarget + .5); store.set("goal_sleep", sleepTarget); renderSleep(); };
+
+// ---------- evening ----------
+function renderEvening(){
+  const n = D.daily, hr = D.hr, lastR = hr[hr.length - 1], lastNight = D.nights[D.nights.length - 1];
+  const bases = n.map(r => r.rhr_base).filter(nn), rhrs = n.map(r => r.rhr).filter(nn);
+  const ref = bases.length ? bases[bases.length - 1] : rhrs.length ? med(rhrs.slice(-7)) : null;
+  const h = lastR ? hourOf(lastR.t) : 0, live = lastR && (!lastNight || lastR.t > lastNight.sleep_end) && (h >= 18 || h < 3);
+  const end = live ? new Date(lastR.t.getTime() + 1) : lastNight ? lastNight.sleep_start : null;
+  const win = end ? hr.filter(p => p.t >= new Date(end - 3600e3) && p.t < end) : [];
+  const val = win.length >= 4 ? med(win.map(p => p.v)) : null, gap = nn(val) && nn(ref) ? val - ref : null;
+  $("bedWhen").textContent = live ? `tonight, as of ${clock(lastR.t)}` : end ? `last night, before ${clock(end)}` : "";
+  $("bedHr").textContent = nn(val) ? Math.round(val) : "–";
+  // gauge: three zones, marker at how far above resting you are
+  const L0 = 6, L1 = 334, gx = g => L0 + Math.min(30, Math.max(0, g)) / 30 * (L1 - L0);
+  let g = `<rect x="${L0}" y="18" width="${gx(READY) - L0 - 2}" height="14" rx="7" style="fill:var(--rec)"/><rect x="${gx(READY) + 1}" y="18" width="${gx(WIRED) - gx(READY) - 2}" height="14" rx="7" style="fill:var(--amber)"/><rect x="${gx(WIRED) + 1}" y="18" width="${L1 - gx(WIRED) - 1}" height="14" rx="7" style="fill:var(--warn)"/>`;
+  g += `<text class="tick" x="${L0}" y="50">resting</text><text class="tick" x="${gx(READY)}" y="50" text-anchor="middle">+${READY}</text><text class="tick" x="${gx(WIRED)}" y="50" text-anchor="middle">+${WIRED}</text><text class="tick" x="${L1}" y="50" text-anchor="end">+30</text>`;
+  if (nn(gap)) g += `<circle cx="${gx(gap)}" cy="25" r="12" style="fill:var(--card);stroke:var(--ink)" stroke-width="3.5"/><circle cx="${gx(gap)}" cy="25" r="4.5" style="fill:var(--ink)"/>`;
+  $("gauge").innerHTML = svg(54, g);
+  if (nn(gap)) {
+    const [z, c] = zoneOf(gap); $("bedZone").textContent = z; $("bedZone").style.color = c;
+    const tip = gap <= READY ? "You're close to resting, so it's a good time to turn in." : gap <= WIRED ? "Still a little elevated. Screens off and lights low for a few minutes." : "Well above resting. Late gaming, a big meal, or stress keep it up and push back deep sleep.";
+    $("bedSay").textContent = `${Math.round(Math.abs(gap))} bpm ${gap >= 0 ? "above" : "below"} your resting ${Math.round(ref)}. ${tip}`;
+  } else { $("bedZone").textContent = ""; $("bedSay").textContent = nn(val) ? "Your resting heart rate isn't known yet. Wear the ring to bed tonight." : "Sync before bed to see how settled you are."; }
+  // the hour itself
+  if (win.length >= 2) {
+    const t0 = end - 3600e3, l = 30, H = 104, vals = win.map(p => p.v), lo = Math.min(...vals, ref ?? 1e9) - 4, hi = Math.max(...vals, (ref ?? 0) + READY) + 4;
+    const x = t => l + (t - t0) / 3600e3 * (W - l - 4), y = v => 8 + (1 - (v - lo) / (hi - lo)) * (H - 30);
+    let body = yAxis(lo, hi, y, l, v => v);
+    if (nn(ref)) body += `<rect x="${l}" y="${y(ref + READY)}" width="${W - l}" height="${y(ref) - y(ref + READY)}" style="fill:var(--rec)" opacity=".13"/><text class="tick" x="${W - 2}" y="${y(ref + READY) + 12}" text-anchor="end">ready zone</text>`;
+    body += `<path d="${win.map((p, i) => (i ? "L" : "M") + x(p.t).toFixed(1) + " " + y(p.v).toFixed(1)).join("")}" fill="none" style="stroke:var(--eve)" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"/>`;
+    win.forEach(p => body += `<circle cx="${x(p.t)}" cy="${y(p.v)}" r="2.6" style="fill:var(--eve)"/>`);
+    body += `<text class="tick" x="${l}" y="${H - 4}">${clock(new Date(t0))}</text><text class="tick" x="${W}" y="${H - 4}" text-anchor="end">${live ? "now" : "asleep"}</text>`;
+    $("bedSpark").innerHTML = svg(H, body);
+  } else $("bedSpark").innerHTML = "";
+
+  // wind-down speed: last full night
+  const wd = [...n].reverse().find(r => nn(r.winddown_min)), hist = n.filter(r => nn(r.winddown_min)).slice(-14);
+  if (wd) {
+    const settledHist = hist.filter(r => r.settled), usual = med(settledHist.map(r => r.winddown_min)), s0 = wd.sleep_start, rf = wd.rhr_base ?? wd.rhr;
+    $("wdWhen").textContent = `${s0.toLocaleDateString("en-US", { timeZone: TZ, weekday: "long" })} night`;
+    if (wd.winddown_min === 0) { $("wdHead").innerHTML = `<span class="good">Calm all evening</span>`; $("wdSay").textContent = "Your heart rate stayed near resting for the two hours before you fell asleep."; }
+    else if (wd.settled) { const fast = wd.winddown_min <= 30;
+      $("wdHead").innerHTML = `<span class="${fast ? "good" : wd.winddown_min <= 60 ? "mid" : "bad"}">${Math.round(wd.winddown_min)} min to settle</span>${settledHist.length >= 4 ? `<small>usually ${Math.round(usual)}</small>` : ""}`;
+      $("wdSay").textContent = `From the evening's peak, it took ${Math.round(wd.winddown_min)} minutes to get within ${READY} bpm of resting. You were settled ${Math.round(wd.settle_lead_min)} minutes before falling asleep.`; }
+    else { $("wdHead").innerHTML = `<span class="bad">Didn't settle</span>${settledHist.length >= 4 ? `<small>usually ${Math.round(usual)} min when you do</small>` : ""}`;
+      $("wdSay").textContent = `Your heart rate was still more than ${READY} bpm above resting when you fell asleep. Starting to wind down earlier usually fixes this.`; }
+    const t0 = s0 - 7200e3, pts = hr.filter(p => p.t >= t0 && p.t < s0);
+    if (pts.length >= 6) {
+      const l = 30, H = 130, vals = pts.map(p => p.v), lo = Math.min(...vals, rf) - 4, hi = Math.max(...vals) + 5;
+      const x = t => l + (t - t0) / 7200e3 * (W - l - 4), y = v => 8 + (1 - (v - lo) / (hi - lo)) * (H - 30);
+      let body = yAxis(lo, hi, y, l, v => v);
+      body += `<rect x="${l}" y="${y(rf + READY)}" width="${W - l}" height="${Math.max(0, y(lo) - y(rf + READY))}" style="fill:var(--rec)" opacity=".13"/><line x1="${l}" x2="${W}" y1="${y(rf + READY)}" y2="${y(rf + READY)}" style="stroke:var(--rec)" stroke-dasharray="3 4"/><text class="tick" x="${l + 4}" y="${y(rf + READY) + 12}">settled below here</text>`;
+      body += `<path d="${pts.map((p, i) => (i ? "L" : "M") + x(p.t).toFixed(1) + " " + y(p.v).toFixed(1)).join("")}" fill="none" style="stroke:var(--eve)" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"/>`;
+      if (wd.winddown_min > 0) { const settleT = s0 - wd.settle_lead_min * 60e3, peakT = settleT - wd.winddown_min * 60e3, yy = 14;
+        body += `<line x1="${x(peakT)}" x2="${x(settleT)}" y1="${yy}" y2="${yy}" style="stroke:var(--ink)" stroke-width="2"/><circle cx="${x(peakT)}" cy="${yy}" r="3.5" style="fill:var(--ink)"/><circle cx="${x(settleT)}" cy="${yy}" r="3.5" style="fill:${wd.settled ? "var(--rec)" : "var(--warn)"}"/>
+          <text class="tick" x="${(x(peakT) + x(settleT)) / 2}" y="${yy - 5}" text-anchor="middle" style="fill:var(--ink);font-weight:600">${Math.round(wd.winddown_min)} min</text>`; }
+      body += `<text class="tick" x="${l}" y="${H - 4}">${clock(new Date(t0))}</text><text class="tick" x="${x(t0 + 3600e3)}" y="${H - 4}" text-anchor="middle">${clock(new Date(t0 + 3600e3))}</text><text class="tick" x="${W}" y="${H - 4}" text-anchor="end">asleep</text>`;
+      $("wdChart").innerHTML = svg(H, body);
+    } else $("wdChart").innerHTML = "";
+  } else { $("wdWhen").textContent = ""; $("wdHead").innerHTML = `<small style="margin:0">Needs a full night</small>`; $("wdSay").textContent = "This measures how long your heart rate takes to come down in the two hours before sleep."; $("wdChart").innerHTML = ""; }
+  // does going to bed calm pay off for you?
+  const rows = n.filter(r => nn(r.presleep_gap) && nn(r.sleep_h)), calm = rows.filter(r => r.presleep_gap <= READY), wired = rows.filter(r => r.presleep_gap > READY);
+  const hv = a => avg(a.map(r => r.hrv).filter(nn));
+  $("bedInsight").textContent = calm.length >= 3 && wired.length >= 3
+    ? `Your pattern so far: after calm evenings you slept ${dur(avg(calm.map(r => r.sleep_h)))} with HRV ${Math.round(hv(calm))} ms. After wired ones, ${dur(avg(wired.map(r => r.sleep_h)))} and ${Math.round(hv(wired))} ms. That's from ${calm.length} calm and ${wired.length} wired nights.`
+    : "After a few calm and a few wired evenings, this shows what going to bed wound-up does to your sleep.";
+}
+
+// ---------- movement ----------
+function renderMove(){
+  const day = new Date(Date.now() - dayOffset * 864e5), ds = localDate(day), on = a => a.filter(p => localDate(p.t) === ds);
+  const row = D.daily.find(r => r.date === ds) || {}, st = on(D.steps), pts = on(D.hr), first = D.hr.length ? localDate(D.hr[0].t) : ds;
+  $("dPrev").disabled = ds <= first; $("dNext").disabled = dayOffset === 0;
+  $("mvWhen").textContent = dayOffset === 0 ? "Today" : dayOffset === 1 ? "Yesterday" : day.toLocaleDateString("en-US", { timeZone: TZ, weekday: "long", month: "short", day: "numeric" });
+  $("stGoal").textContent = (stepGoal / 1000) + "k goal";
+  const steps = st.reduce((a, p) => a + p.v, 0), pct = steps / stepGoal;
+  $("mvSteps").textContent = steps.toLocaleString(); $("mvBar").style.width = Math.min(100, pct * 100) + "%";
+  $("mvSay").textContent = pct >= 1 ? `Goal reached, ${Math.round(pct * 100)}% of ${stepGoal.toLocaleString()}.` : `${Math.round(pct * 100)}% of your goal, ${(stepGoal - steps).toLocaleString()} to go.`;
+  const miles = nn(row.meters) ? row.meters / 1609.34 : null, sitAt = nn(row.sit_max_start) ? new Date(row.sit_max_start * 1000) : null;
+  const cell = (k, v, unit, d) => `<div><div class="k">${k}</div><div class="num v">${v}${unit ? `<small>${unit}</small>` : ""}</div><div class="d">${d}</div></div>`;
+  $("mvTrio").innerHTML = cell("Active hours", nn(row.active_hours) ? row.active_hours : "–", "", "250+ steps") +
+    cell("Longest sit", nn(row.sit_max_min) ? durMin(row.sit_max_min) : "–", "", sitAt ? "from " + clock(sitAt) : "none over 30 min") +
+    cell("Distance", nn(miles) ? miles.toFixed(1) : "–", "mi", "ring estimate");
+  // steps per hour
+  const byH = Array(24).fill(0); st.forEach(p => byH[Math.floor(hourOf(p.t))] += p.v);
+  barChart($("hours"), { labels: [...Array(24)].map((_, i) => i), h: 104, max: Math.max(600, ...byH) * 1.1, fmt: v => v >= 1000 ? v / 1000 + "k" : v,
+    stacks: [{ v: byH.map(v => v || null), color: i => byH[i] >= 250 ? "var(--move)" : "var(--ink3)", opacity: i => byH[i] >= 250 ? 1 : .5 }],
+    read: $("hourRead"), readFn: i => byH[i] ? `<b>${byH[i].toLocaleString()}</b>steps <span class="when">${hourLbl(i)}</span>` : "" });
+  const hs = $("hours").querySelector("svg"); if (hs) { hs.querySelectorAll("text.tick").forEach(t => { if (+t.getAttribute("y") > 90) t.remove(); });
+    [0, 6, 12, 18].forEach(hh => hs.insertAdjacentHTML("beforeend", `<text class="tick" x="${30 + (hh + .5) * (W - 34) / 24}" y="100" text-anchor="middle">${hh === 12 ? "noon" : hourLbl(hh)}</text>`)); }
+  // heart rate through the day
+  const vals = pts.map(p => p.v), l = 30, H = 150, b = 22, lo = 40, hi = Math.max(120, ...vals, 0) + 5;
+  const x = hh => l + hh / 24 * (W - l - 4), y = v => 8 + (1 - (v - lo) / (hi - lo)) * (H - 8 - b);
+  let body = yAxis(lo, hi, y, l, v => v);
+  const rest = [...D.daily].reverse().find(r => nn(r.rhr_base) || nn(r.rhr)), rv = rest ? (rest.rhr_base ?? rest.rhr) : null;
+  if (nn(rv)) body += `<line x1="${l}" x2="${W}" y1="${y(rv)}" y2="${y(rv)}" style="stroke:var(--rec)" stroke-dasharray="3 4"/>`;
+  const xs = pts.map(p => hourOf(p.t)); pts.forEach((p, i) => body += `<circle cx="${x(xs[i]).toFixed(1)}" cy="${y(p.v).toFixed(1)}" r="1.7" style="fill:var(--ink3)" opacity=".5"/>`);
+  const sm = vals.map((_, i) => med(vals.slice(Math.max(0, i - 2), i + 3))); let d = "";
+  sm.forEach((v, i) => { d += (i === 0 || xs[i] - xs[i - 1] > .5 ? "M" : "L") + x(xs[i]).toFixed(1) + " " + y(v).toFixed(1); });
+  body += `<path d="${d}" fill="none" style="stroke:var(--move)" stroke-width="2.2" stroke-linejoin="round"/>`;
+  for (const hh of [0, 6, 12, 18]) body += `<text class="tick" x="${x(hh)}" y="${H - 4}" text-anchor="${hh === 0 ? "start" : "middle"}">${hh === 12 ? "noon" : hourLbl(hh)}</text>`;
+  $("trace").innerHTML = pts.length ? svg(H, body) : `<p class="faint">No heart-rate readings this day.</p>`;
+  if (pts.length) scrub($("trace"), pts.length, i => x(xs[i]), $("dayRead"), i => `<b>${pts[i].v}</b>bpm <span class="when">${clock(pts[i].t)}</span>`, H); else $("dayRead").innerHTML = "";
+}
+$("dPrev").onclick = () => { dayOffset++; renderMove(); };
+$("dNext").onclick = () => { dayOffset = Math.max(0, dayOffset - 1); renderMove(); };
+$("stMinus").onclick = () => { stepGoal = Math.max(2000, stepGoal - 500); store.set("goal_steps", stepGoal); renderMove(); renderTrends(); };
+$("stPlus").onclick = () => { stepGoal = Math.min(30000, stepGoal + 500); store.set("goal_steps", stepGoal); renderMove(); renderTrends(); };
+
+// ---------- trends ----------
+function renderTrends(){
+  const today = localDate(new Date()), rows = D.daily.filter(r => r.date <= today).slice(-range), L = rows.map(r => shortDate(r.date));
+  const block = (id, title, note) => `<div class="metric"><div class="bh"><h3>${title}</h3><div class="readout" id="${id}R"></div></div><div class="chart" id="${id}"></div>${note ? `<p class="note">${note}</p>` : ""}</div>`;
+  $("metrics").innerHTML = block("tRec", "Recovery") + block("tHrv", "HRV", "The shaded band is your normal range. Red dots are unusual nights.") + block("tRhr", "Resting heart rate")
+    + block("tSleep", "Sleep", `<span style="color:var(--deep)">■</span> Deep &nbsp;<span style="color:var(--rem)">■</span> REM &nbsp;<span style="color:var(--light)">■</span> Light &nbsp;<span style="color:var(--awake)">■</span> Awake`)
+    + block("tBed", "Before bed, above resting", `Under the dashed line (${READY} bpm) you were ready for sleep.`) + block("tWd", "Wind-down time", "Faded bars are nights you didn't settle before falling asleep.")
+    + block("tO2", "Blood oxygen overnight", "Solid is the average, dashed is the lowest hour.") + block("tStr", "Stress") + block("tSteps", "Steps") + block("tAct", "Active hours");
+  const when = i => `<span class="when">${L[i]}</span>`, rd = (v, unit, i) => nn(v) ? `<b>${v}</b>${unit} ${when(i)}` : "";
+  barChart($("tRec"), { labels: L, max: 100, stacks: [{ v: rows.map(r => nn(r.recovery) ? Math.max(3, r.recovery) : null), color: i => stateOf(rows[i].recovery)[0] }], read: $("tRecR"), readFn: i => rd(rows[i].recovery, "", i) });
+  const band = (r, k) => { const b = r[k + "_base"], m = r[k + "_mad"]; return !nn(b) ? [null, null] : k === "ln_hrv" ? [Math.exp(b - m), Math.exp(b + m)] : [b - m, b + m]; };
+  const odd = k => rows.map((r, i) => nn(r[k]) && Math.abs(r[k]) > 2 ? i : -1).filter(i => i >= 0);
+  lineChart($("tHrv"), { labels: L, lines: [{ v: rows.map(r => r.hrv), color: "var(--rec)" }], band: { lo: rows.map(r => band(r, "ln_hrv")[0]), hi: rows.map(r => band(r, "ln_hrv")[1]) }, marks: odd("ln_hrv_z"), read: $("tHrvR"), readFn: i => rd(nn(rows[i].hrv) ? Math.round(rows[i].hrv) : null, "ms", i) });
+  lineChart($("tRhr"), { labels: L, lines: [{ v: rows.map(r => r.rhr), color: "var(--move)" }], band: { lo: rows.map(r => band(r, "rhr")[0]), hi: rows.map(r => band(r, "rhr")[1]) }, marks: odd("rhr_z"), read: $("tRhrR"), readFn: i => rd(nn(rows[i].rhr) ? Math.round(rows[i].rhr) : null, "bpm", i) });
+  const stg = k => rows.map(r => r.sleep_source === "ring" ? (r[k + "_min"] || 0) / 60 : null);
+  barChart($("tSleep"), { labels: L, h: 140, thr: sleepTarget, fmt: v => v + "h", stacks: [{ v: stg("deep"), color: "var(--deep)" }, { v: stg("rem"), color: "var(--rem)" }, { v: stg("light"), color: "var(--light)" }, { v: stg("awake"), color: "var(--awake)" },
+      { v: rows.map(r => r.sleep_source === "estimate" ? r.sleep_h : null), color: "var(--ink3)" }], read: $("tSleepR"), readFn: i => nn(rows[i].sleep_h) ? `<b>${dur(rows[i].sleep_h)}</b> ${when(i)}` : "" });
+  barChart($("tBed"), { labels: L, thr: READY, fmt: v => "+" + v, stacks: [{ v: rows.map(r => nn(r.presleep_gap) ? Math.max(.6, r.presleep_gap) : null), color: i => zoneOf(rows[i].presleep_gap)[1] }],
+    read: $("tBedR"), readFn: i => nn(rows[i].presleep_gap) ? `<b>${rows[i].presleep_gap > 0 ? "+" : ""}${Math.round(rows[i].presleep_gap)}</b>bpm ${when(i)}` : "" });
+  barChart($("tWd"), { labels: L, fmt: v => v + "m", stacks: [{ v: rows.map(r => nn(r.winddown_min) ? Math.max(3, r.winddown_min) : null), color: "var(--eve)", opacity: i => rows[i].settled ? 1 : .35 }],
+    read: $("tWdR"), readFn: i => nn(rows[i].winddown_min) ? `<b>${rows[i].settled ? Math.round(rows[i].winddown_min) + " min" : "didn't settle"}</b> ${when(i)}` : "" });
+  lineChart($("tO2"), { labels: L, min: 86, max: 100, h: 116, lines: [{ v: rows.map(r => r.spo2_avg), color: "var(--sleep)" }, { v: rows.map(r => r.spo2_low), color: "var(--sleep)", dash: "3 4", w: 1.6, dots: false }],
+    read: $("tO2R"), readFn: i => nn(rows[i].spo2_avg) ? `<b>${Math.round(rows[i].spo2_avg)}</b>% low ${Math.round(rows[i].spo2_low)} ${when(i)}` : "" });
+  barChart($("tStr"), { labels: L, max: 100, h: 104, stacks: [{ v: rows.map(r => r.stress), color: i => rows[i].stress >= 60 ? "var(--warn)" : rows[i].stress >= 30 ? "var(--amber)" : "var(--rec)" }], read: $("tStrR"), readFn: i => rd(nn(rows[i].stress) ? Math.round(rows[i].stress) : null, "", i) });
+  barChart($("tSteps"), { labels: L, h: 110, thr: stepGoal, fmt: v => v >= 1000 ? v / 1000 + "k" : v, stacks: [{ v: rows.map(r => r.steps), color: "var(--move)", opacity: i => rows[i].steps >= stepGoal ? 1 : .5 }], read: $("tStepsR"), readFn: i => rd(nn(rows[i].steps) ? rows[i].steps.toLocaleString() : null, "", i) });
+  barChart($("tAct"), { labels: L, h: 104, stacks: [{ v: rows.map(r => r.active_hours), color: "var(--move)" }], read: $("tActR"), readFn: i => rd(rows[i].active_hours, " hours", i) });
+}
+document.querySelectorAll("#range button").forEach(b => b.onclick = () => { document.querySelectorAll("#range button").forEach(x => x.setAttribute("aria-pressed", x === b)); range = +b.dataset.n; renderTrends(); });
+
+load();
+</script>
+</body>
+</html>
